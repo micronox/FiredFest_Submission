@@ -66,7 +66,7 @@ Run local checks:
 
 ```powershell
 uv sync --extra dev
-uv run pytest
+uv run python -m pytest
 cd web
 npm ci
 npm run lint
