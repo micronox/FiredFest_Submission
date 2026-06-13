@@ -63,7 +63,7 @@ Question Lab turns the notebook generation experiment into a governed,
 review-only web workflow. The LLM creates a candidate; deterministic
 checkpoints validate its schema, single answer, explanation, category,
 similarity, safety, export readiness, and arithmetic where applicable.
-Failed candidates receive structured feedback for up to two revisions.
+Failed candidates receive structured feedback for up to one revision.
 Candidates are never written to the production question bank automatically.
 
 Set these server-only variables to unlock it:
@@ -77,7 +77,8 @@ QUESTION_LAB_ACCESS_TOKEN="a-long-random-secret"
 
 Set `QUESTION_LAB_ACCESS_TOKEN` on public deployments. The API compares it
 server-side and also limits each client to three generation requests per five
-minutes. Model calls have a 45-second timeout, one retry, and a bounded output.
+minutes. A generation gets at most two model attempts, each with a 20-second
+timeout, no SDK retry, and a bounded output.
 Keep `QUESTION_LAB_ENABLED=false` until both secrets are configured.
 
 ## 7. Images

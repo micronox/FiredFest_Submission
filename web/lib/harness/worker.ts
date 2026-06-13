@@ -24,7 +24,7 @@ const candidateSchema = z.object({
 });
 
 export const DEFAULT_MODEL = "gpt-4o-mini";
-const MAX_REVISIONS = 2;
+const MAX_REVISIONS = 1;
 
 export function questionLabStatus() {
   const hasKey = Boolean(process.env.OPENAI_API_KEY);
@@ -47,8 +47,8 @@ export async function generateGovernedQuestion(
 
   const client = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
-    timeout: 45_000,
-    maxRetries: 1,
+    timeout: 20_000,
+    maxRetries: 0,
   });
   const attempts: HarnessAttempt[] = [];
   let feedback: HarnessCheckpoint[] = [];
