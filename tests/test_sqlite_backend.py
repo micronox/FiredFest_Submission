@@ -70,6 +70,34 @@ class SQLiteBackendTests(unittest.TestCase):
             ):
                 self.service.create_generated_test(question_count=invalid_count)
 
+    def test_startup_repairs_images_in_persisted_generated_tests(self) -> None:
+        generated = self.service.create_generated_test(question_count=8)
+        with closing(sqlite3.connect(self.db_path)) as connection:
+            image_question_id = connection.execute(
+                "SELECT id FROM questions WHERE stimulus_type = 'image' LIMIT 1"
+            ).fetchone()[0]
+            connection.execute(
+                """
+                UPDATE test_questions
+                SET question_id = ?
+                WHERE test_id = ? AND position = 1
+                """,
+                (image_question_id, generated.id),
+            )
+            connection.commit()
+
+        self.service.close()
+        self.service = create_quiz_service(
+            db_path=self.db_path,
+            seed_csv_path=DEFAULT_CSV_PATH,
+        )
+
+        repaired = self.service.get_test(generated.id)
+        self.assertEqual(8, len(repaired.questions))
+        self.assertTrue(
+            all(question.stimulus_type != "image" for question in repaired.questions)
+        )
+
     def test_questions_do_not_store_redundant_image_filename_column(self) -> None:
         with closing(sqlite3.connect(self.db_path)) as connection:
             columns = [

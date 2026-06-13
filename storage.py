@@ -186,6 +186,8 @@ def seed_from_csv(
             test_id = _upsert_seed_test(connection, source_exam, len(question_ids))
             _replace_test_questions(connection, test_id, question_ids)
 
+        _repair_generated_tests(connection)
+
 
 def validate_seed_row(
     row: dict[str, str],
@@ -811,6 +813,47 @@ def _replace_test_questions(
             for position, question_id in enumerate(question_ids, start=1)
         ),
     )
+
+
+def _repair_generated_tests(connection: sqlite3.Connection) -> None:
+    """Replace image questions in persisted generated tests for browser use."""
+    rows = connection.execute(
+        """
+        SELECT tq.test_id, tq.position
+        FROM test_questions tq
+        JOIN tests t ON t.id = tq.test_id
+        JOIN questions q ON q.id = tq.question_id
+        WHERE t.kind = 'generated' AND q.stimulus_type = 'image'
+        ORDER BY tq.test_id, tq.position
+        """
+    ).fetchall()
+
+    for row in rows:
+        replacement = connection.execute(
+            """
+            SELECT q.id
+            FROM questions q
+            WHERE q.stimulus_type != 'image'
+              AND q.id NOT IN (
+                  SELECT question_id
+                  FROM test_questions
+                  WHERE test_id = ?
+              )
+            ORDER BY RANDOM()
+            LIMIT 1
+            """,
+            (row["test_id"],),
+        ).fetchone()
+        if replacement is None:
+            raise ValueError("No browser-compatible replacement question available")
+        connection.execute(
+            """
+            UPDATE test_questions
+            SET question_id = ?
+            WHERE test_id = ? AND position = ?
+            """,
+            (replacement["id"], row["test_id"], row["position"]),
+        )
 
 
 def _sort_source_exam(source_exam: str) -> tuple[int, str]:
