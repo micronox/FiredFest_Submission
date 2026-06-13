@@ -274,7 +274,9 @@ class QuizStorage:
     def create_generated_test(self, question_count: int | None = None) -> TestSummary:
         """Create a playable practice test from unique random bank questions."""
         available_count = int(
-            self.connection.execute("SELECT COUNT(*) FROM questions").fetchone()[0]
+            self.connection.execute(
+                "SELECT COUNT(*) FROM questions WHERE stimulus_type != 'image'"
+            ).fetchone()[0]
         )
         if available_count == 0:
             raise ValueError("Cannot generate a test without questions")
@@ -290,7 +292,13 @@ class QuizStorage:
         question_ids = [
             int(row["id"])
             for row in self.connection.execute(
-                "SELECT id FROM questions ORDER BY RANDOM() LIMIT ?",
+                """
+                SELECT id
+                FROM questions
+                WHERE stimulus_type != 'image'
+                ORDER BY RANDOM()
+                LIMIT ?
+                """,
                 (selected_count,),
             ).fetchall()
         ]

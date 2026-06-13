@@ -7,7 +7,8 @@
 
 The Textual dashboard can also create persistent generated practice exams.
 Each generated exam selects 8-10 unique questions from the vetted question
-bank and gives one minute per question.
+bank and gives one minute per question. Generated exams exclude image-stimulus
+questions so they remain fully usable in the browser-served terminal.
 
 ## Serve in a browser
 

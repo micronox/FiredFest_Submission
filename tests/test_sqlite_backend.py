@@ -57,6 +57,9 @@ class SQLiteBackendTests(unittest.TestCase):
         playable = self.service.get_test(first.id)
         self.assertEqual(9, len(playable.questions))
         self.assertEqual(9, len({question.id for question in playable.questions}))
+        self.assertTrue(
+            all(question.stimulus_type != "image" for question in playable.questions)
+        )
         self.assertEqual(first, self.service.list_tests()[-2])
         self.assertEqual(second, self.service.list_tests()[-1])
 
