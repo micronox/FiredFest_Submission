@@ -78,8 +78,14 @@ export async function generateGovernedQuestion(
       text: { format: zodTextFormat(candidateSchema, "candidate_question") },
     });
 
-    const candidate = response.output_parsed as CandidateQuestion | null;
-    if (!candidate) throw new Error("The model did not return a candidate question.");
+    const parsedCandidate = response.output_parsed as CandidateQuestion | null;
+    if (!parsedCandidate) {
+      throw new Error("The model did not return a candidate question.");
+    }
+    const candidate = {
+      ...parsedCandidate,
+      questionType,
+    };
     const checkpoints = runCheckpoints(candidate, questionType, examples);
     attempts.push({ revision, candidate, checkpoints });
     if (checkpoints.every((checkpoint) => checkpoint.passed)) {
