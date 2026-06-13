@@ -23,7 +23,7 @@ Railway's injected `PORT` environment variable and binds to `0.0.0.0`.
 
 ```bash
 railway login
-railway up . --service quizcat-textual
+railway up --service quizcat-textual
 railway domain --service quizcat-textual
 ```
 

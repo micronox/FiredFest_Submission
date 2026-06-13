@@ -44,7 +44,7 @@ service explicitly.
 Deploy the Textual browser app:
 
 ```powershell
-railway up . --service quizcat-textual --detach
+railway up --service quizcat-textual --detach
 ```
 
 Deploy the Next.js/Postgres app:
