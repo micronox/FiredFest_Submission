@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { getQuestionExamples, listQuestionTypes } from "@/lib/queries";
 import {
   generateGovernedQuestion,
@@ -10,13 +10,26 @@ export const runtime = "nodejs";
 
 const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
 const RATE_LIMIT_REQUESTS = 3;
+const SESSION_COOKIE = "quizcat_question_lab_session";
+const SESSION_MAX_AGE_SECONDS = 24 * 60 * 60;
 const requestsByClient = new Map<string, number[]>();
 
 export async function GET() {
-  return NextResponse.json({
+  const response = NextResponse.json({
     ...questionLabStatus(),
     questionTypes: await listQuestionTypes(),
   });
+  const credential = sessionCredential();
+  if (credential) {
+    response.cookies.set(SESSION_COOKIE, credential, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: SESSION_MAX_AGE_SECONDS,
+      path: "/api/question-lab",
+    });
+  }
+  return response;
 }
 
 export async function POST(request: Request) {
@@ -72,13 +85,36 @@ export async function POST(request: Request) {
 function hasAccess(request: Request): boolean {
   const expected = process.env.QUESTION_LAB_ACCESS_TOKEN;
   if (!expected) return true;
-  const supplied = request.headers.get("x-question-lab-token") ?? "";
-  const expectedBytes = Buffer.from(expected);
+  const supplied =
+    request.headers.get("x-question-lab-token") ??
+    readCookie(request, SESSION_COOKIE) ??
+    "";
+  const expectedBytes = Buffer.from(
+    supplied === expected ? expected : sessionCredential() ?? ""
+  );
   const suppliedBytes = Buffer.from(supplied);
   return (
     expectedBytes.length === suppliedBytes.length &&
     timingSafeEqual(expectedBytes, suppliedBytes)
   );
+}
+
+function sessionCredential(): string | null {
+  const secret = process.env.QUESTION_LAB_ACCESS_TOKEN;
+  if (!secret) return null;
+  return createHmac("sha256", secret)
+    .update("quizcat-question-lab-session-v1")
+    .digest("base64url");
+}
+
+function readCookie(request: Request, name: string): string | null {
+  const cookie = request.headers.get("cookie");
+  if (!cookie) return null;
+  for (const part of cookie.split(";")) {
+    const [key, ...value] = part.trim().split("=");
+    if (key === name) return decodeURIComponent(value.join("="));
+  }
+  return null;
 }
 
 function withinRateLimit(request: Request): boolean {

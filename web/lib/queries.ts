@@ -27,6 +27,54 @@ export async function listTests(): Promise<TestSummary[]> {
   return rows.map(testSummaryFromRow);
 }
 
+export async function createGeneratedTest(): Promise<TestSummary> {
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const count = 8 + Math.floor(Math.random() * 3);
+    const questionResult = await client.query(
+      `SELECT id
+       FROM questions
+       ORDER BY RANDOM()
+       LIMIT $1`,
+      [count]
+    );
+    if (questionResult.rows.length !== count) {
+      throw new Error(`Question bank must contain at least ${count} questions.`);
+    }
+
+    const numberResult = await client.query(
+      `SELECT COUNT(*)::int + 1 AS generated_number
+       FROM tests
+       WHERE kind = 'generated'`
+    );
+    const generatedNumber = Number(numberResult.rows[0].generated_number);
+    const testResult = await client.query(
+      `INSERT INTO tests (
+         title, kind, source_exam, question_count, time_limit_seconds
+       )
+       VALUES ($1, 'generated', NULL, $2, $3)
+       RETURNING id, title, kind, source_exam, question_count, time_limit_seconds`,
+      [`Generated Exam ${generatedNumber}`, count, count * 60]
+    );
+    const testId = Number(testResult.rows[0].id);
+    await client.query(
+      `INSERT INTO test_questions (test_id, question_id, position)
+       SELECT $1, question_id, position::int
+       FROM UNNEST($2::int[]) WITH ORDINALITY AS selected(question_id, position)`,
+      [testId, questionResult.rows.map((row) => Number(row.id))]
+    );
+    await client.query("COMMIT");
+    return testSummaryFromRow(testResult.rows[0]);
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export async function getTest(testId: number): Promise<TestDefinition | null> {
   const testResult = await getPool().query(
     `SELECT id, title, kind, source_exam, question_count, time_limit_seconds

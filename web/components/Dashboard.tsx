@@ -6,7 +6,27 @@ import type { TestSummary } from "@/lib/types";
 import BrandLogo from "@/components/BrandLogo";
 
 export default function Dashboard({ tests }: { tests: TestSummary[] }) {
+  const [availableTests, setAvailableTests] = useState(tests);
   const [selectedId, setSelectedId] = useState<number | null>(tests[0]?.id ?? null);
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState("");
+
+  async function generateTest() {
+    setGenerating(true);
+    setError("");
+    try {
+      const response = await fetch("/api/tests", { method: "POST" });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error ?? "Could not generate test.");
+      const generated = body as TestSummary;
+      setAvailableTests((current) => [...current, generated]);
+      setSelectedId(generated.id);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not generate test.");
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-6 py-12">
@@ -22,13 +42,13 @@ export default function Dashboard({ tests }: { tests: TestSummary[] }) {
         <h2 className="border-b border-zinc-200 px-4 py-2 text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
           Available Exams
         </h2>
-        {tests.length === 0 ? (
+        {availableTests.length === 0 ? (
           <p className="px-4 py-6 text-sm text-zinc-500">
             No exams found. Run the seed script to load the question bank.
           </p>
         ) : (
           <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
-            {tests.map((test) => {
+            {availableTests.map((test) => {
               const minutes = Math.floor(test.timeLimitSeconds / 60);
               const isSelected = test.id === selectedId;
               return (
@@ -54,6 +74,12 @@ export default function Dashboard({ tests }: { tests: TestSummary[] }) {
         )}
       </section>
 
+      {error && (
+        <p className="rounded-md bg-red-50 p-3 text-sm text-red-800 dark:bg-red-950/40 dark:text-red-200">
+          {error}
+        </p>
+      )}
+
       <div className="flex gap-3">
         <Link
           href="/question-lab"
@@ -67,6 +93,14 @@ export default function Dashboard({ tests }: { tests: TestSummary[] }) {
         >
           View Stats
         </Link>
+        <button
+          type="button"
+          disabled={generating}
+          onClick={generateTest}
+          className="rounded-md bg-amber-500 px-4 py-2 text-sm font-medium text-zinc-950 hover:bg-amber-400 disabled:cursor-wait disabled:bg-zinc-300 disabled:text-zinc-500"
+        >
+          {generating ? "Generating..." : "Generate Test"}
+        </button>
         {selectedId !== null ? (
           <Link
             href={`/quiz/${selectedId}`}

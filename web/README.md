@@ -76,9 +76,11 @@ QUESTION_LAB_ACCESS_TOKEN="a-long-random-secret"
 ```
 
 Set `QUESTION_LAB_ACCESS_TOKEN` on public deployments. The API compares it
-server-side and also limits each client to three generation requests per five
-minutes. A generation gets at most two model attempts, each with a 20-second
-timeout, no SDK retry, and a bounded output.
+server-side and derives a non-readable `HttpOnly` browser session from it, so
+the secret is never embedded in client code or entered by users. Public
+visitors can generate through that automatic session, limited to three
+generation requests per five minutes per client. A generation gets at most two
+model attempts, each with a 20-second timeout, no SDK retry, and a bounded output.
 Keep `QUESTION_LAB_ENABLED=false` until both secrets are configured.
 
 ## 7. Images
@@ -102,6 +104,8 @@ The Postgres schema and seed data must be applied once before the first
 deployment, as described in steps 3 and 4.
 
 Current production data contains 400 questions across 8 sample exams.
+The dashboard can create persistent generated practice tests by selecting
+8-10 random questions from that bank and assigning one minute per question.
 
 Always pass `--service quizcat-web` and deploy `web/` with `--path-as-root`.
 Deploying the repository root to this service would start the wrong application.
